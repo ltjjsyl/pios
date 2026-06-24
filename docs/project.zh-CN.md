@@ -41,7 +41,7 @@ stage: bring-up
 │       └── board/raspi5/       # Raspberry Pi 5 板级代码
 ├── tools/
 │   └── build.ps1               # 构建 ELF 并生成 kernel 镜像
-├── .cargo/config.toml          # 默认 AArch64 裸机 target 和链接参数
+├── .cargo/config.toml          # AArch64 裸机 target 的链接参数
 └── Cargo.toml                  # workspace 配置
 ```
 
@@ -57,7 +57,7 @@ rustup component add llvm-tools-preview
 运行 host 单元测试：
 
 ```powershell
-cargo test -p kernel --lib --target x86_64-pc-windows-msvc
+cargo test -p kernel --lib
 ```
 
 构建 Raspberry Pi 5 内核镜像：
@@ -72,6 +72,16 @@ powershell -ExecutionPolicy Bypass -File .\tools\build.ps1
 target\raspi5\kernel_2712.img
 target\raspi5\kernel8.img
 ```
+
+`.cargo/config.toml` 不再把 `aarch64-unknown-none` 设为整个 workspace 的默认 target。这样 RustRover 和普通 host 测试会默认使用 Windows host 环境，避免把 `#[test]`、`assert!`、`assert_eq!` 等测试符号误判为裸机环境缺失。
+
+`tools/build.ps1` 会在构建镜像时显式传入：
+
+```powershell
+cargo build -p kernel --release --target aarch64-unknown-none
+```
+
+因此裸机镜像仍然使用 AArch64 target、链接脚本和裸机 panic handler。`kernel/src/panic.rs` 中的 panic handler 只在非测试构建中启用，避免 RustRover 或 host 测试环境加载 `std` 时出现重复 `panic_impl` 诊断。
 
 ## 启动文件
 

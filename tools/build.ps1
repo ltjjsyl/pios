@@ -8,7 +8,7 @@ $kernel8Img = Join-Path $outDir "kernel8.img"
 
 Push-Location $root
 try {
-    cargo build -p kernel --release
+    cargo build -p kernel --release --target aarch64-unknown-none
 
     New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 

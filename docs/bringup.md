@@ -17,6 +17,24 @@ The expected serial settings are `115200 8N1`.
 
 The boot partition should contain the Raspberry Pi firmware files, `boot/config.txt`, and the generated kernel image. Raspberry Pi 5 firmware defaults to `kernel_2712.img`, and this project also copies the same image to `kernel8.img` as a fallback.
 
+## Build and IDE targets
+
+The workspace does not set `aarch64-unknown-none` as the global default target. That keeps host tests and IDE analysis, including RustRover, in the normal Windows host context by default.
+
+Use the build helper for Raspberry Pi 5 images:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\build.ps1
+```
+
+The helper passes `--target aarch64-unknown-none` explicitly, so the bare-metal kernel still uses the AArch64 linker script and panic handler. Host-only unit tests can run without a target override:
+
+```powershell
+cargo test -p kernel --lib
+```
+
+The kernel panic handler is compiled only outside Rust test builds. This avoids duplicate `panic_impl` diagnostics when host test tooling or IDE analysis uses `std`, while preserving the bare-metal panic path for Raspberry Pi images.
+
 ## Current hardware assumptions
 
 - Board: Raspberry Pi 5
