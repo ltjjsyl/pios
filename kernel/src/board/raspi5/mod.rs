@@ -1,24 +1,20 @@
-pub mod uart {
+pub mod debug_uart {
     use core::ptr::{read_volatile, write_volatile};
 
     use kernel::console::Console;
 
-    const UART0_BASE: usize = 0x1f00_030000;
+    // Raspberry Pi 5 board DEBUG UART. The bootloader also writes its serial
+    // diagnostics here, which makes it the best first bring-up console.
+    const DEBUG_UART_BASE: usize = 0x107d_001000;
     const UART_DR: usize = 0x00;
     const UART_FR: usize = 0x18;
-    const UART_IBRD: usize = 0x24;
-    const UART_FBRD: usize = 0x28;
-    const UART_LCRH: usize = 0x2c;
     const UART_CR: usize = 0x30;
-    const UART_IMSC: usize = 0x38;
-    const UART_ICR: usize = 0x44;
 
     const FR_TXFF: u32 = 1 << 5;
     const CR_UARTEN: u32 = 1 << 0;
     const CR_TXE: u32 = 1 << 8;
     const CR_RXE: u32 = 1 << 9;
-    const LCRH_WLEN_8: u32 = 0b11 << 5;
-    const LCRH_FEN: u32 = 1 << 4;
+    const TX_READY_SPINS: usize = 10_000;
 
     pub struct Uart;
 
@@ -28,26 +24,26 @@ pub mod uart {
         }
 
         pub fn init(&mut self) {
+            // Keep the bootloader's baud-rate and line-control setup. Early
+            // bring-up only needs to make sure the UART and TX/RX paths are on.
             unsafe {
-                write_volatile(Self::reg(UART_CR), 0);
-                write_volatile(Self::reg(UART_ICR), 0x7ff);
-                write_volatile(Self::reg(UART_IBRD), 26);
-                write_volatile(Self::reg(UART_FBRD), 3);
-                write_volatile(Self::reg(UART_LCRH), LCRH_WLEN_8 | LCRH_FEN);
-                write_volatile(Self::reg(UART_IMSC), 0);
                 write_volatile(Self::reg(UART_CR), CR_UARTEN | CR_TXE | CR_RXE);
             }
         }
 
         fn reg(offset: usize) -> *mut u32 {
-            (UART0_BASE + offset) as *mut u32
+            (DEBUG_UART_BASE + offset) as *mut u32
         }
     }
 
     impl Console for Uart {
         fn write_byte(&mut self, byte: u8) {
             unsafe {
-                while read_volatile(Self::reg(UART_FR)) & FR_TXFF != 0 {}
+                for _ in 0..TX_READY_SPINS {
+                    if read_volatile(Self::reg(UART_FR)) & FR_TXFF == 0 {
+                        break;
+                    }
+                }
                 write_volatile(Self::reg(UART_DR), byte as u32);
             }
         }

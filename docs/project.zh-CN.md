@@ -9,7 +9,7 @@
 - 使用 Rust `no_std` 编写 AArch64 裸机内核
 - 使用少量汇编完成启动入口、栈初始化和 `.bss` 清零
 - 在 Raspberry Pi 5 真机上启动 `kernel_2712.img`
-- 通过 UART 串口输出早期启动日志
+- 通过 Raspberry Pi 5 板载 DEBUG UART 输出早期启动日志
 - 建立后续异常、中断、内存管理、调度和 shell 的基础结构
 
 当前第一阶段的期望串口输出包含：
@@ -19,6 +19,7 @@ raspi5-os: Rust learning kernel
 Hello from kernel
 board: Raspberry Pi 5 / BCM2712 / AArch64
 stage: bring-up
+console: Raspberry Pi 5 DEBUG UART
 ```
 
 ## 当前目录结构
@@ -104,7 +105,7 @@ uart_2ndstage=1
 
 ## 串口验证
 
-当前项目以 UART 作为第一阶段唯一调试接口。
+当前项目以 Raspberry Pi 5 板载 3-pin DEBUG UART 作为第一阶段唯一调试接口。
 
 推荐串口参数：
 
@@ -112,13 +113,13 @@ uart_2ndstage=1
 115200 8N1
 ```
 
-真机启动后，如果 UART 地址和初始化参数正确，应能看到早期内核日志。当前 UART MMIO 基址暂定为：
+真机启动后，如果 DEBUG UART 接线正确，应能先看到 bootloader 日志，然后看到早期内核日志。当前 DEBUG UART MMIO 基址为：
 
 ```text
-0x1f00030000
+0x107d001000
 ```
 
-这个地址需要在 Raspberry Pi 5 真机 bring-up 时继续验证。
+40-pin GPIO14/GPIO15 上的 RP1 UART 暂不作为第一阶段控制台，后续会作为独立板级驱动再接入。
 
 ## 当前阶段
 
@@ -128,7 +129,7 @@ uart_2ndstage=1
 - AArch64 启动汇编
 - 链接脚本
 - panic handler
-- UART 控制台输出路径
+- DEBUG UART 控制台输出路径
 - `kernel_2712.img` / `kernel8.img` 构建脚本
 - 基础 host 单元测试
 
